@@ -14,10 +14,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * 日志查询工具
@@ -144,6 +141,9 @@ public class QueryLogsTools {
     private static final List<String> VALID_REGIONS = List.of(
             "ap-guangzhou", "ap-shanghai", "ap-beijing", "ap-chengdu"
     );
+    private static final Set<String> KNOWN_LOG_TOPICS = Set.of(
+            "system-metrics", "application-logs", "database-slow-query", "system-events"
+    );
 
     private static final String DEFAULT_REGION = "ap-guangzhou";
     
@@ -164,29 +164,37 @@ public class QueryLogsTools {
             @ToolParam(description = "查询条件，支持 Lucene 语法，如 level:ERROR OR cpu_usage:>80；为空时返回该主题近 5 条核心日志") String query,
             @ToolParam(description = "返回日志条数，默认20，最大100") Integer limit) {
         
-        int actualLimit = (limit == null || limit <= 0) ? 20 : Math.min(limit, 100);
-        
-        String safeQuery = query == null ? "" : query;
-        
-
         try {
+            String safeRegion = normalizeRegion(region);
+            if (safeRegion == null) {
+                return buildErrorResponse("不支持的 region: " + region + "。可选值: " + VALID_REGIONS);
+            }
+
+            String safeTopic = normalizeLogTopic(logTopic);
+            if (safeTopic == null) {
+                return buildErrorResponse("logTopic 不能为空。请先调用 getAvailableLogTopics 获取可用日志主题。");
+            }
+
+            int actualLimit = (limit == null || limit <= 0) ? 20 : Math.min(limit, 100);
+            String safeQuery = normalizeQuery(safeTopic, query);
             List<LogEntry> logEntries;
             
             if (mockEnabled) {
                 // Mock 模式：返回与告警关联的模拟日志数据
-                logEntries = buildMockLogs(region, logTopic, safeQuery, actualLimit);
+                logEntries = buildMockLogs(safeRegion, safeTopic, safeQuery, actualLimit);
                 logger.info("使用 Mock 数据，返回 {} 条日志", logEntries.size());
             } else {
                 // 真实模式：调用 CLS API（这里预留接口，后续实现）
-                return buildErrorResponse("CLS 真实查询尚未实现，请启用 mock 模式进行测试");
+                return buildErrorResponse("CLS 真实查询尚未实现。请启用 cls.mock-enabled=true 使用演示数据，或通过 MCP 接入真实日志服务。");
             }
             
             // 构建成功响应
             QueryLogsOutput output = new QueryLogsOutput();
             output.setSuccess(!logEntries.isEmpty());
-            output.setRegion(region);
-            output.setLogTopic(logTopic);
-            output.setQuery(safeQuery.isBlank() ? "DEFAULT_QUERY" : safeQuery);
+            output.setMockMode(mockEnabled);
+            output.setRegion(safeRegion);
+            output.setLogTopic(safeTopic);
+            output.setQuery(safeQuery);
             output.setLogs(logEntries);
             output.setTotal(logEntries.size());
             output.setMessage(logEntries.isEmpty() ? "未找到匹配的日志" : String.format("成功查询到 %d 条日志", logEntries.size()));
@@ -200,6 +208,31 @@ public class QueryLogsTools {
             logger.error("查询日志失败", e);
             return buildErrorResponse("查询失败: " + e.getMessage());
         }
+    }
+
+    private String normalizeRegion(String region) {
+        String safeRegion = (region == null || region.isBlank()) ? DEFAULT_REGION : region.trim();
+        return VALID_REGIONS.contains(safeRegion) ? safeRegion : null;
+    }
+
+    private String normalizeLogTopic(String logTopic) {
+        if (logTopic == null || logTopic.isBlank()) {
+            return null;
+        }
+        return logTopic.trim().toLowerCase();
+    }
+
+    private String normalizeQuery(String logTopic, String query) {
+        if (query != null && !query.isBlank()) {
+            return query.trim();
+        }
+        return switch (logTopic) {
+            case "system-metrics" -> "cpu_usage:>80 OR memory_usage:>85 OR disk_usage:>90";
+            case "application-logs" -> "level:ERROR OR level:WARN OR response_time:>3000";
+            case "database-slow-query" -> "query_time:>2 OR full_table_scan:true";
+            case "system-events" -> "restart OR crash OR oom_kill";
+            default -> "*";
+        };
     }
 
     /**
@@ -594,6 +627,8 @@ public class QueryLogsTools {
             QueryLogsOutput output = new QueryLogsOutput();
             output.setSuccess(false);
             output.setMessage(message);
+            output.setLogs(List.of());
+            output.setTotal(0);
             return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(output);
         } catch (Exception e) {
             return String.format("{\"success\":false,\"message\":\"%s\"}", message);
@@ -633,6 +668,9 @@ public class QueryLogsTools {
     public static class QueryLogsOutput {
         @JsonProperty("success")
         private boolean success;
+
+        @JsonProperty("mock_mode")
+        private boolean mockMode;
         
         @JsonProperty("region")
         private String region;

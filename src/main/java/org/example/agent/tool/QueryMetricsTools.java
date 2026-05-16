@@ -9,6 +9,7 @@ import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -62,45 +63,7 @@ public class QueryMetricsTools {
         logger.info("开始查询 Prometheus 活动告警, Mock模式: {}", mockEnabled);
         
         try {
-            List<SimplifiedAlert> simplifiedAlerts;
-            
-            if (mockEnabled) {
-                // Mock 模式：返回与文档关联的模拟告警数据
-                simplifiedAlerts = buildMockAlerts();
-                logger.info("使用 Mock 数据，返回 {} 个模拟告警", simplifiedAlerts.size());
-            } else {
-                // 真实模式：调用 Prometheus Alerts API
-                PrometheusAlertsResult result = fetchPrometheusAlerts();
-                
-                if (!"success".equals(result.getStatus())) {
-                    return buildErrorResponse("Prometheus API 返回非成功状态: " + result.getStatus(), result.getError());
-                }
-                
-                // 转换为简化格式，对于相同的 alertname，只保留第一个
-                Set<String> seenAlertNames = new HashSet<>();
-                simplifiedAlerts = new ArrayList<>();
-                
-                for (PrometheusAlert alert : result.getData().getAlerts()) {
-                    String alertName = alert.getLabels().get("alertname");
-                    
-                    // 如果这个 alertname 已经存在，跳过
-                    if (seenAlertNames.contains(alertName)) {
-                        continue;
-                    }
-                    
-                    // 标记为已见过
-                    seenAlertNames.add(alertName);
-                    
-                    SimplifiedAlert simplified = new SimplifiedAlert();
-                    simplified.setAlertName(alertName);
-                    simplified.setDescription(alert.getAnnotations().getOrDefault("description", ""));
-                    simplified.setState(alert.getState());
-                    simplified.setActiveAt(alert.getActiveAt());
-                    simplified.setDuration(calculateDuration(alert.getActiveAt()));
-                    
-                    simplifiedAlerts.add(simplified);
-                }
-            }
+            List<SimplifiedAlert> simplifiedAlerts = loadSimplifiedAlerts();
             
             // 构建成功响应
             PrometheusAlertsOutput output = new PrometheusAlertsOutput();
@@ -117,6 +80,66 @@ public class QueryMetricsTools {
             logger.error("查询 Prometheus 告警失败", e);
             return buildErrorResponse("查询失败", e.getMessage());
         }
+    }
+
+    @Tool(description = "Query a specific active Prometheus alert by alert name. " +
+            "Use this tool when the user provides an alert name such as HighCPUUsage, HighMemoryUsage, ServiceUnavailable, or SlowResponse.")
+    public String queryPrometheusAlertByName(
+            @ToolParam(description = "Prometheus alert name, for example HighCPUUsage or ServiceUnavailable") String alertName) {
+        try {
+            if (alertName == null || alertName.trim().isEmpty()) {
+                return buildErrorResponse("告警名称不能为空", "请提供 alertname，例如 HighCPUUsage");
+            }
+
+            String normalizedAlertName = alertName.trim();
+            List<SimplifiedAlert> matches = loadSimplifiedAlerts().stream()
+                    .filter(alert -> alert.getAlertName() != null
+                            && alert.getAlertName().equalsIgnoreCase(normalizedAlertName))
+                    .toList();
+
+            PrometheusAlertsOutput output = new PrometheusAlertsOutput();
+            output.setSuccess(!matches.isEmpty());
+            output.setAlerts(matches);
+            output.setMessage(matches.isEmpty()
+                    ? "未找到指定告警: " + normalizedAlertName
+                    : String.format("成功检索到 %d 个匹配告警", matches.size()));
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(output);
+        } catch (Exception e) {
+            logger.error("按告警名称查询 Prometheus 告警失败", e);
+            return buildErrorResponse("查询失败", e.getMessage());
+        }
+    }
+
+    private List<SimplifiedAlert> loadSimplifiedAlerts() throws Exception {
+        if (mockEnabled) {
+            List<SimplifiedAlert> alerts = buildMockAlerts();
+            logger.info("使用 Mock 数据，返回 {} 个模拟告警", alerts.size());
+            return alerts;
+        }
+
+        PrometheusAlertsResult result = fetchPrometheusAlerts();
+        if (!"success".equals(result.getStatus())) {
+            throw new RuntimeException("Prometheus API 返回非成功状态: " + result.getStatus() + ", error=" + result.getError());
+        }
+
+        Set<String> seenAlertNames = new HashSet<>();
+        List<SimplifiedAlert> simplifiedAlerts = new ArrayList<>();
+        for (PrometheusAlert alert : result.getData().getAlerts()) {
+            String alertName = alert.getLabels().get("alertname");
+            if (alertName == null || seenAlertNames.contains(alertName)) {
+                continue;
+            }
+            seenAlertNames.add(alertName);
+
+            SimplifiedAlert simplified = new SimplifiedAlert();
+            simplified.setAlertName(alertName);
+            simplified.setDescription(alert.getAnnotations().getOrDefault("description", ""));
+            simplified.setState(alert.getState());
+            simplified.setActiveAt(alert.getActiveAt());
+            simplified.setDuration(calculateDuration(alert.getActiveAt()));
+            simplifiedAlerts.add(simplified);
+        }
+        return simplifiedAlerts;
     }
     
     /**

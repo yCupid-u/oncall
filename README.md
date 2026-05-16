@@ -1,10 +1,10 @@
 # SuperBizAgent
 
-> 基于 Spring Boot + AI Agent 的智能问答与运维系统
+> 基于 Spring Boot + Spring AI Alibaba 的智能 OnCall Agent 原型系统，用于演示 RAG 知识库、多轮对话、工具调用和 AIOps 排障流程。
 
 ## 📖 项目简介
 
-企业级智能业务代理系统，包含两大核心模块：
+智能 OnCall Agent 演示项目，包含两大核心模块：
 
 ### 1. RAG 智能问答
 集成 Milvus 向量数据库和阿里云 DashScope，提供基于检索增强生成的智能问答能力，支持多轮对话和流式输出。
@@ -55,6 +55,26 @@ SuperBizAgent/
 └── aiops-docs/                        # 运维文档库
 ```
 
+## 🧰 Agent 工具调用
+
+项目通过 Spring AI `@Tool` 暴露本地工具，并预留 MCP 外部工具接入：
+
+| 工具名 | 来源 | 作用 |
+|------|------|------|
+| `getCurrentDateTime` | `DateTimeTools` | 获取当前时间，用于对话和报告时间上下文 |
+| `queryInternalDocs` | `InternalDocsTools` | 基于 Milvus + Rerank 检索内部知识库，返回结构化文档片段 |
+| `queryPrometheusAlerts` | `QueryMetricsTools` | 查询当前 Prometheus 活动告警，支持 Mock 和真实 Prometheus API |
+| `queryPrometheusAlertByName` | `QueryMetricsTools` | 按告警名过滤活动告警，例如 `HighCPUUsage`、`SlowResponse` |
+| `getAvailableLogTopics` | `QueryLogsTools` | 查询可用日志主题和示例查询语句 |
+| `queryLogs` | `QueryLogsTools` | 查询系统指标、应用日志、慢查询和系统事件日志，支持参数校验和 Mock 数据 |
+
+默认公开演示配置关闭 MCP：
+
+```yaml
+spring.ai.mcp.client.enabled: false
+```
+
+如需接入真实云日志、CMDB、工单系统等外部能力，可以通过 MCP 服务暴露工具，再由 `ToolCallbackProvider` 注入给 Agent。
 
 ## 📡 核心接口
 
@@ -108,7 +128,7 @@ POST /api/ai_ops
 
 ```yaml
 server:
-  port: 9900
+  port: 9999
 
 # Milvus 向量数据库
 milvus:
@@ -140,12 +160,28 @@ export DASHSCOPE_API_KEY=your-api-key
 ```
 
 
+## 🔐 配置说明
+
+项目不提交任何真实 API Key。首次运行前请复制环境变量模板并填入自己的配置：
+
+```bash
+cp .env.example .env
+```
+
+至少需要配置：
+
+```bash
+DASHSCOPE_API_KEY=your-dashscope-api-key
+```
+
+MCP、Prometheus、CLS 日志查询默认关闭或使用本地/Mock 配置，可按需在 `.env` 或环境变量中开启。
+
 ## 🚀 快速开始
 
 ### 1. 环境准备
 
 ```bash
-# 设置 API Key
+# 设置 API Key，或使用 .env 文件
 export DASHSCOPE_API_KEY=your-api-key
 ```
 
@@ -171,22 +207,22 @@ make init  # 会自动启动向量数据库并上传运维文档到向量库
 
 **Web 界面**
 ```
-http://localhost:9900
+http://localhost:9999
 ```
 
 **命令行**
 ```bash
 # 上传文档
-curl -X POST http://localhost:9900/api/upload \
+curl -X POST http://localhost:9999/api/upload \
   -F "file=@document.txt"
 
 # 智能问答
-curl -X POST http://localhost:9900/api/chat \
+curl -X POST http://localhost:9999/api/chat \
   -H "Content-Type: application/json" \
   -d '{"Id":"test","Question":"什么是向量数据库？"}'
 
 # 健康检查
-curl http://localhost:9900/milvus/health
+curl http://localhost:9999/milvus/health
 ```
 
 

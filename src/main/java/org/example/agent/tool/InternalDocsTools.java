@@ -1,6 +1,8 @@
 package org.example.agent.tool;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 import org.example.service.VectorSearchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,24 +58,72 @@ public class InternalDocsTools {
         
 
         try {
+            if (query == null || query.trim().isEmpty()) {
+                return objectMapper.writeValueAsString(ToolOutput.error(
+                        "queryInternalDocs",
+                        "Search query cannot be empty. Ask the user for a service name, alert name, error keyword, or runbook topic."
+                ));
+            }
+
             // 使用向量搜索服务检索相关文档
             List<VectorSearchService.SearchResult> searchResults = 
-                    vectorSearchService.searchSimilarDocuments(query, topK);
+                    vectorSearchService.searchSimilarDocuments(query.trim(), topK);
             
             if (searchResults.isEmpty()) {
-                return "{\"status\": \"no_results\", \"message\": \"No relevant documents found in the knowledge base.\"}";
+                ToolOutput output = ToolOutput.success("queryInternalDocs", query.trim(), topK, searchResults);
+                output.setStatus("no_results");
+                output.setMessage("No relevant documents found in the knowledge base.");
+                return objectMapper.writeValueAsString(output);
             }
             
-            // 将搜索结果转换为 JSON 格式
-            String resultJson = objectMapper.writeValueAsString(searchResults);
-            
-
-            return resultJson;
+            return objectMapper.writeValueAsString(ToolOutput.success("queryInternalDocs", query.trim(), topK, searchResults));
             
         } catch (Exception e) {
             logger.error("[工具错误] queryInternalDocs 执行失败", e);
-            return String.format("{\"status\": \"error\", \"message\": \"Failed to query internal docs: %s\"}", 
-                    e.getMessage());
+            try {
+                return objectMapper.writeValueAsString(ToolOutput.error("queryInternalDocs", "Failed to query internal docs: " + e.getMessage()));
+            } catch (Exception jsonException) {
+                return "{\"success\":false,\"status\":\"error\",\"tool\":\"queryInternalDocs\",\"message\":\"Failed to query internal docs\"}";
+            }
+        }
+    }
+
+    @Data
+    private static class ToolOutput {
+        @JsonProperty("success")
+        private boolean success;
+        @JsonProperty("status")
+        private String status;
+        @JsonProperty("tool")
+        private String tool;
+        @JsonProperty("query")
+        private String query;
+        @JsonProperty("top_k")
+        private Integer topK;
+        @JsonProperty("results")
+        private List<VectorSearchService.SearchResult> results;
+        @JsonProperty("message")
+        private String message;
+
+        static ToolOutput success(String tool, String query, int topK, List<VectorSearchService.SearchResult> results) {
+            ToolOutput output = new ToolOutput();
+            output.setSuccess(true);
+            output.setStatus("ok");
+            output.setTool(tool);
+            output.setQuery(query);
+            output.setTopK(topK);
+            output.setResults(results);
+            output.setMessage(String.format("Found %d relevant document chunks.", results.size()));
+            return output;
+        }
+
+        static ToolOutput error(String tool, String message) {
+            ToolOutput output = new ToolOutput();
+            output.setSuccess(false);
+            output.setStatus("error");
+            output.setTool(tool);
+            output.setMessage(message);
+            return output;
         }
     }
 }

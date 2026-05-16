@@ -43,14 +43,20 @@ build/
 *.log
 app.log
 logs/
+make-init.log
+make-init.err.log
 
 ### Upload Files ###
 uploads/
 
-### Temp Scripts ###
-*.sh
-*.py
-
 ### docker
 /volumes
 /server.pid
+
+### Codex / local agent files ###
+.agents/
+
+### Environment ###
+.env
+.env.*
+!.env.example

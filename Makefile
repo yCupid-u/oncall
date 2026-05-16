@@ -2,7 +2,7 @@
 # 用于自动化项目初始化和文档向量化
 
 # 配置变量
-SERVER_URL = http://localhost:9900
+SERVER_URL = http://localhost:9999
 UPLOAD_API = $(SERVER_URL)/api/upload
 DOCS_DIR = aiops-docs
 HEALTH_CHECK_API = $(SERVER_URL)/milvus/health
@@ -110,42 +110,7 @@ check:
 
 # 上传所有文档
 upload:
-	@echo "$(YELLOW)📤 开始上传 $(DOCS_DIR) 目录下的文档...$(NC)"
-	@if [ ! -d "$(DOCS_DIR)" ]; then \
-		echo "$(RED)❌ 目录 $(DOCS_DIR) 不存在！$(NC)"; \
-		exit 1; \
-	fi
-	@count=0; \
-	success=0; \
-	failed=0; \
-	for file in $(DOCS_DIR)/*.md; do \
-		if [ -f "$$file" ]; then \
-			count=$$((count + 1)); \
-			filename=$$(basename "$$file"); \
-			echo "$(YELLOW)  [$$count] 上传文件: $$filename$(NC)"; \
-			response=$$(curl -s -w "\n%{http_code}" -X POST $(UPLOAD_API) \
-				-F "file=@$$file" \
-				-H "Accept: application/json"); \
-			http_code=$$(echo "$$response" | tail -n1); \
-			body=$$(echo "$$response" | sed '$$d'); \
-			if [ "$$http_code" = "200" ]; then \
-				echo "$(GREEN)      ✅ 成功: $$filename$(NC)"; \
-				success=$$((success + 1)); \
-			else \
-				echo "$(RED)      ❌ 失败: $$filename (HTTP $$http_code)$(NC)"; \
-				echo "$$body" | head -n 3; \
-				failed=$$((failed + 1)); \
-			fi; \
-			sleep 1; \
-		fi; \
-	done; \
-	echo ""; \
-	echo "$(GREEN)📊 上传统计:$(NC)"; \
-	echo "   总计: $$count 个文件"; \
-	echo "   $(GREEN)成功: $$success$(NC)"; \
-	if [ $$failed -gt 0 ]; then \
-		echo "   $(RED)失败: $$failed$(NC)"; \
-	fi
+	@bash scripts/upload-docs.bash "$(DOCS_DIR)" "$(UPLOAD_API)"
 
 # 停止 Spring Boot 服务
 stop:

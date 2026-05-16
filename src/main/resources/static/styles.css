@@ -431,6 +431,49 @@ body {
     box-shadow: none;
 }
 
+.kcs-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    padding-left: 18px;
+}
+
+.kcs-action-btn {
+    border: 1px solid #dadce0;
+    background: #ffffff;
+    color: #3c4043;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.kcs-action-btn:hover:not(:disabled) {
+    background: #f8fafd;
+    border-color: #b6c7e8;
+    color: #1a73e8;
+}
+
+.kcs-action-btn.primary {
+    background: #e8f0fe;
+    border-color: #c6dafc;
+    color: #174ea6;
+}
+
+.kcs-action-btn:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.kcs-action-status {
+    color: #5f6368;
+    font-size: 12px;
+}
+
 /* Markdown渲染样式 */
 .message-content h1, .message-content h2, .message-content h3,
 .message-content h4, .message-content h5, .message-content h6 {

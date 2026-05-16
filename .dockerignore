@@ -1,0 +1,11 @@
+.git
+.idea
+uploads
+volumes
+server.log
+server.pid
+make-init.log
+make-init.err.log
+*.iml
+target/*
+!target/*.jar

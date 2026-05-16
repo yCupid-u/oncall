@@ -1,7 +1,7 @@
 // SuperBizAgent 前端应用
 class SuperBizAgentApp {
     constructor() {
-        this.apiBaseUrl = 'http://localhost:9900/api';
+        this.apiBaseUrl = `${window.location.origin}/api`;
         this.currentMode = 'quick'; // 'quick' 或 'stream'
         this.sessionId = this.generateSessionId();
         this.isStreaming = false;
@@ -636,14 +636,16 @@ class SuperBizAgentApp {
                 if (chatResponse && chatResponse.success) {
                     // 成功：添加实际响应消息（即使 answer 为空也显示）
                     const answer = chatResponse.answer || '（无回复内容）';
-                    this.addMessage('assistant', answer);
+                    const assistantMessage = this.addMessage('assistant', answer);
+                    this.attachKnowledgeCaptureActions(assistantMessage, message, answer);
                 } else if (chatResponse && chatResponse.errorMessage) {
                     // 业务错误
                     throw new Error(chatResponse.errorMessage);
                 } else {
                     // 兜底：尝试显示任何可用内容
                     const fallbackAnswer = chatResponse?.answer || chatResponse?.errorMessage || '服务返回了空内容';
-                    this.addMessage('assistant', fallbackAnswer);
+                    const assistantMessage = this.addMessage('assistant', fallbackAnswer);
+                    this.attachKnowledgeCaptureActions(assistantMessage, message, fallbackAnswer);
                 }
             } else {
                 // HTTP 成功但业务失败
@@ -692,7 +694,7 @@ class SuperBizAgentApp {
                     
                     if (done) {
                         // 流结束，使用统一的处理方法
-                        this.handleStreamComplete(assistantMessageElement, fullResponse);
+                        this.handleStreamComplete(assistantMessageElement, fullResponse, message);
                         break;
                     }
 
@@ -727,7 +729,7 @@ class SuperBizAgentApp {
                             // 兼容旧格式 [DONE] 标记
                             if (rawData === '[DONE]') {
                                 // 流结束标记，将内容转换为Markdown渲染
-                                this.handleStreamComplete(assistantMessageElement, fullResponse);
+                                this.handleStreamComplete(assistantMessageElement, fullResponse, message);
                                 return;
                             }
                             
@@ -753,7 +755,7 @@ class SuperBizAgentApp {
                                         }
                                     } else if (sseMessage.type === 'done') {
                                         console.log('[SSE调试] 收到done标记，流结束');
-                                        this.handleStreamComplete(assistantMessageElement, fullResponse);
+                                        this.handleStreamComplete(assistantMessageElement, fullResponse, message);
                                         return;
                                     } else if (sseMessage.type === 'error') {
                                         console.error('[SSE调试] 收到错误:', sseMessage.data);
@@ -943,7 +945,7 @@ class SuperBizAgentApp {
     }
 
     // 处理流式传输完成
-    handleStreamComplete(assistantMessageElement, fullResponse) {
+    handleStreamComplete(assistantMessageElement, fullResponse, question = '') {
         if (assistantMessageElement) {
             assistantMessageElement.classList.remove('streaming');
             const messageContent = assistantMessageElement.querySelector('.message-content');
@@ -960,11 +962,118 @@ class SuperBizAgentApp {
                 content: fullResponse,
                 timestamp: new Date().toISOString()
             });
+            this.attachKnowledgeCaptureActions(assistantMessageElement, question, fullResponse);
             // 如果当前对话是从历史记录加载的，更新历史记录
             if (this.isCurrentChatFromHistory) {
                 this.updateCurrentChatHistory();
                 this.renderChatHistory();
             }
+        }
+    }
+
+    attachKnowledgeCaptureActions(messageElement, question, answer) {
+        if (!messageElement || !question || !answer || messageElement.dataset.kcsActionsAttached === 'true') {
+            return;
+        }
+
+        const wrapper = messageElement.querySelector('.message-content-wrapper');
+        if (!wrapper) {
+            return;
+        }
+
+        messageElement.dataset.kcsActionsAttached = 'true';
+
+        const actions = document.createElement('div');
+        actions.className = 'kcs-actions';
+
+        const solvedButton = document.createElement('button');
+        solvedButton.type = 'button';
+        solvedButton.className = 'kcs-action-btn primary';
+        solvedButton.textContent = '已解决，沉淀';
+        solvedButton.title = '验证答案有效，并写入可检索知识库';
+
+        const reviewButton = document.createElement('button');
+        reviewButton.type = 'button';
+        reviewButton.className = 'kcs-action-btn';
+        reviewButton.textContent = '未解决，待复盘';
+        reviewButton.title = '记录为待复盘条目，不进入检索知识库';
+
+        const status = document.createElement('span');
+        status.className = 'kcs-action-status';
+
+        solvedButton.addEventListener('click', async () => {
+            const feedback = window.prompt('补充验证信息或适用条件（可选）', '') || '';
+            await this.captureKnowledge({
+                question,
+                answer,
+                resolved: true,
+                feedback,
+                actions,
+                status,
+                buttons: [solvedButton, reviewButton]
+            });
+        });
+
+        reviewButton.addEventListener('click', async () => {
+            const feedback = window.prompt('补充未解决原因或下一步复盘点（可选）', '') || '';
+            await this.captureKnowledge({
+                question,
+                answer,
+                resolved: false,
+                feedback,
+                actions,
+                status,
+                buttons: [solvedButton, reviewButton]
+            });
+        });
+
+        actions.appendChild(solvedButton);
+        actions.appendChild(reviewButton);
+        actions.appendChild(status);
+        wrapper.appendChild(actions);
+    }
+
+    async captureKnowledge({ question, answer, resolved, feedback, status, buttons }) {
+        buttons.forEach(button => button.disabled = true);
+        status.textContent = resolved ? '沉淀中...' : '记录中...';
+
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/kcs/capture`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sessionId: this.sessionId,
+                    question,
+                    answer,
+                    resolved,
+                    feedback,
+                    tags: ['chat']
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok || data.code !== 200) {
+                throw new Error(data.message || `HTTP错误: ${response.status}`);
+            }
+
+            const result = data.data || {};
+            if (resolved && result.indexed) {
+                status.textContent = '已沉淀';
+                this.showNotification('已沉淀到知识库', 'success');
+            } else if (resolved) {
+                status.textContent = '已保存，索引失败';
+                this.showNotification(result.message || '已保存，但索引失败', 'warning');
+            } else {
+                status.textContent = '待复盘';
+                this.showNotification('已记录为待复盘', 'info');
+            }
+        } catch (error) {
+            console.error('KCS capture failed:', error);
+            status.textContent = '失败';
+            buttons.forEach(button => button.disabled = false);
+            this.showNotification('知识沉淀失败: ' + error.message, 'error');
         }
     }
 
