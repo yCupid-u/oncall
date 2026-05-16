@@ -63,10 +63,10 @@ SuperBizAgent/
 |------|------|------|
 | `getCurrentDateTime` | `DateTimeTools` | 获取当前时间，用于对话和报告时间上下文 |
 | `queryInternalDocs` | `InternalDocsTools` | 基于 Milvus + Rerank 检索内部知识库，返回结构化文档片段 |
-| `queryPrometheusAlerts` | `QueryMetricsTools` | 查询当前 Prometheus 活动告警，支持 Mock 和真实 Prometheus API |
+| `queryPrometheusAlerts` | `QueryMetricsTools` | 查询当前 Prometheus 活动告警，支持本地示例数据和真实 Prometheus API |
 | `queryPrometheusAlertByName` | `QueryMetricsTools` | 按告警名过滤活动告警，例如 `HighCPUUsage`、`SlowResponse` |
 | `getAvailableLogTopics` | `QueryLogsTools` | 查询可用日志主题和示例查询语句 |
-| `queryLogs` | `QueryLogsTools` | 查询系统指标、应用日志、慢查询和系统事件日志，支持参数校验和 Mock 数据 |
+| `queryLogs` | `QueryLogsTools` | 查询系统指标、应用日志、慢查询和系统事件日志，支持参数校验和本地示例数据 |
 
 默认公开演示配置关闭 MCP：
 
@@ -174,7 +174,7 @@ cp .env.example .env
 DASHSCOPE_API_KEY=your-dashscope-api-key
 ```
 
-MCP、Prometheus、CLS 日志查询默认关闭或使用本地/Mock 配置，可按需在 `.env` 或环境变量中开启。
+MCP、Prometheus、CLS 日志查询默认关闭或使用本地示例配置，可按需在 `.env` 或环境变量中开启。
 
 ## 🚀 快速开始
 
@@ -227,5 +227,5 @@ curl http://localhost:9999/milvus/health
 
 
 **版本**: v1.0.0  
-**作者**: chief  
+**作者**: yCupid  
 **许可证**: MIT
