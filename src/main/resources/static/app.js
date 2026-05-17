@@ -1,5 +1,5 @@
-// SuperBizAgent 前端应用
-class SuperBizAgentApp {
+﻿// OnCallPilot 前端应用
+class OnCallPilotApp {
     constructor() {
         this.apiBaseUrl = `${window.location.origin}/api`;
         this.currentMode = 'quick'; // 'quick' 或 'stream'
@@ -540,7 +540,7 @@ class SuperBizAgentApp {
         // 更新输入框状态
         if (this.messageInput) {
             this.messageInput.disabled = this.isStreaming;
-            this.messageInput.placeholder = '问问智能OnCall助手';
+            this.messageInput.placeholder = '问问智能值班排障助手';
         }
     }
 
@@ -1654,5 +1654,7 @@ document.head.appendChild(style);
 
 // 初始化应用
 document.addEventListener('DOMContentLoaded', () => {
-    new SuperBizAgentApp();
+    new OnCallPilotApp();
 });
+
+

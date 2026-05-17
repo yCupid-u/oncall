@@ -1,10 +1,10 @@
-# SuperBizAgent
+﻿# OnCallPilot
 
-> 基于 Spring Boot + Spring AI Alibaba 的智能 OnCall Agent 原型系统，用于演示 RAG 知识库、多轮对话、工具调用和 AIOps 排障流程。
+> 智能值班排障助手，基于 Spring Boot + Spring AI Alibaba 演示 RAG 知识库、多轮对话、工具调用和 AIOps 排障流程。
 
 ## 📖 项目简介
 
-智能 OnCall Agent 演示项目，包含两大核心模块：
+OnCallPilot 是一个智能值班排障助手演示项目，包含两大核心模块：
 
 ### 1. RAG 智能问答
 集成 Milvus 向量数据库和阿里云 DashScope，提供基于检索增强生成的智能问答能力，支持多轮对话和流式输出。
@@ -34,7 +34,7 @@
 ## 📦 核心模块
 
 ```
-SuperBizAgent/
+OnCallPilot/
 ├── src/main/java/org/example/
 │   ├── controller/
 │   │   └── ChatController.java        # 统一接口控制器 ⭐
@@ -229,3 +229,6 @@ curl http://localhost:9999/milvus/health
 **版本**: v1.0.0  
 **作者**: yCupid  
 **许可证**: MIT
+
+
+
