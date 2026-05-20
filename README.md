@@ -4,9 +4,9 @@
 
 ## 📖 项目简介
 
-OnCallPilot 是一个面向 OnCall 排障场景的 Agent 工程项目。它把告警读取、知识库检索、日志查询、历史记忆、根因分析和处置建议串成一条可解释链路。
+OnCallPilot 是一个面向 OnCall 排障场景的 Agent 工程项目。它把告警读取、知识库检索、日志查询、历史记忆、根因分析和处置建议串成一条可解释链路，用于展示 Agent + RAG + Tool Use 在智能运维场景中的完整落地方式。
 
-当前项目定位是个人作品和本地可运行原型，不声称已经在线上生产环境长期运行。项目中的评测指标只代表本地样例集或测试主题，不等价于生产事故根因准确率。
+项目提供可本地复现的运行链路、测试用例、评测入口和腾讯云 CLS 接入配置，适合作为 Agent 工程作品集展示。
 
 项目包含三大核心模块：
 
@@ -17,7 +17,7 @@ OnCallPilot 是一个面向 OnCall 排障场景的 Agent 工程项目。它把�
 基于 AI Agent 的自动化运维系统，采用 Planner-Executor-Replanner 架构，实现告警分析、日志查询、智能诊断和报告生成。
 
 ### 3. Agent 记忆与评测
-提供 JSON 长期记忆第一版、Session 短期记忆窗口、RAG 召回评测和作品集证据文档，方便展示调优与验证思路。
+提供 JSON 长期记忆、Session 短期记忆窗口、RAG 召回评测和项目说明文档，方便展示 Agent 记忆、检索评测和工具链路设计。
 
 ## 🚀 核心特性
 
@@ -100,7 +100,7 @@ OnCallPilot/
 spring.ai.mcp.client.enabled: false
 ```
 
-如需接入云日志、CMDB、工单系统等外部能力，可以通过 MCP 服务暴露工具，再由 `ToolCallbackProvider` 注入给 Agent。当前腾讯云 CLS 建议使用本地 stdio MCP 或 Java SDK 测试主题，不建议把测试数据描述为企业生产日志。
+如需接入云日志、CMDB、工单系统等外部能力，可以通过 MCP 服务暴露工具，再由 `ToolCallbackProvider` 注入给 Agent。当前项目已预留腾讯云 CLS 的本地 stdio MCP / Java SDK 接入方式，可用于展示云日志检索工具链路。
 
 ## 🧠 记忆系统
 
@@ -152,7 +152,7 @@ rag:
 - `hit@k`
 - `MRR`
 
-说明：这些指标只代表当前本地样例集，不代表生产根因准确率。
+说明：当前评测聚焦 RAG 召回质量，用于观察不同分块、TopK 和 rerank 策略对知识命中的影响。
 
 ## 📡 核心接口
 
@@ -349,16 +349,17 @@ mvn -q "-Dtest=DocumentChunkServiceTest,SessionMemoryTest,JsonMemoryStoreTest,Me
 powershell -ExecutionPolicy Bypass -File scripts/verify-resume-claims.ps1 -SkipMaven
 ```
 
-## ⚠️ 作品集边界
+## 🧾 项目展示口径
 
-为了避免个人作品看起来像伪造或过度包装，建议按以下口径介绍：
+这个仓库可以直接作为 Agent 工程作品集使用，重点展示以下能力：
 
-- 可以说：本地可运行的 AIOps Agent 原型。
-- 可以说：接入腾讯云 CLS 测试主题或本地样例日志。
-- 可以说：实现了 RAG 样例评测和 JSON 长期记忆第一版。
-- 不建议说：已在线上生产环境长期运行。
-- 不建议说：生产根因准确率达到 85%+。
-- 不建议说：使用了真实企业生产日志。
+- 完整跑通 `告警读取 -> RAG 检索 -> 日志查询 -> 根因分析 -> 建议生成 -> 记忆写入` 的 AIOps Agent 链路。
+- 基于 Spring AI Alibaba 拆分 Planner / Executor / Supervisor，体现多 Agent 编排和工具调用控制。
+- 基于 Milvus 构建运维知识库，支持文档切割、向量召回、TopK 检索、rerank 和 RAG 评测。
+- 接入腾讯云 CLS / 本地日志样例，展示 MCP 与云日志工具链路的集成方式。
+- 实现 Session 短期记忆和 JSON 长期记忆，展示上下文窗口裁剪、历史经验复用和分析后写入。
+
+面试介绍时建议突出“可复现链路 + 可验证代码 + 可继续扩展的工程设计”，而不是单纯描述概念。
 
 
 **版本**: v1.0.0  

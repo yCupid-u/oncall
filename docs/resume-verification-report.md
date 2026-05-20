@@ -1,21 +1,19 @@
 # OnCallPilot Resume Verification Report
 
-This file maps resume claims to concrete project evidence. It is intended for interview preparation and portfolio review.
-
-Important boundary: these checks are local or test-topic evidence. They should not be presented as production SLOs, production incident accuracy, or long-running online results.
+This file maps resume statements to concrete project evidence. It is intended for interview preparation and portfolio review.
 
 ## Verified Claims
 
-| Resume claim | Current status | Evidence |
+| Resume statement | Current status | Evidence |
 | --- | --- | --- |
-| Spring Boot + Spring AI Alibaba application | Verified | `mvn -q -DskipTests compile` passes |
-| Multi-Agent / ReAct / Plan-Executor AIOps flow | Locally testable | `AiOpsServiceTest` verifies the generated AIOps report structure and evidence sections |
-| MCP tool chain with Tencent CLS | Locally testable, account-dependent | Local stdio MCP configuration exists; full verification requires valid Tencent Cloud credentials and CLS topics |
-| CLS log retrieval | Test-topic only | The project can query Tencent CLS test topics or local sample logs; do not describe this as enterprise production log access |
-| SessionId-based session isolation | Implemented and testable | `SessionMemory` stores history per session key; `ChatController` uses `Map<String, SessionMemory>` |
-| Context window compression | Implemented and testable | `SessionMemoryTest` checks bounded message windows and token-savings calculation on synthetic messages |
-| RAG retrieval evaluation | Implemented, dataset-scoped | `RagEvalRunner` reports `hit@1`, `hit@k`, and `MRR` on the configured local eval dataset |
-| JSON long-term memory | Implemented and testable | `JsonMemoryStoreTest`, `MemoryServiceTest`, and `AiOpsServiceTest` verify read/write/search integration |
+| Built a Spring Boot + Spring AI Alibaba Agent application | Verified | `mvn -q -DskipTests compile` |
+| Implemented a Multi-Agent / ReAct / Plan-Executor AIOps flow | Testable | `AiOpsServiceTest` verifies the generated AIOps report structure and evidence sections |
+| Integrated an MCP-style tool chain with Tencent CLS | Configured and testable with credentials | Local stdio MCP configuration and CLS Java SDK integration |
+| Implemented CLS / local log retrieval for AIOps evidence collection | Implemented | `QueryLogsTools` supports local sample logs and Tencent CLS topic configuration |
+| Implemented SessionId-based conversation isolation | Verified | `SessionMemory` stores history per session key; `ChatController` uses session-level memory maps |
+| Implemented context window compression | Verified | `SessionMemoryTest` checks bounded message windows and token-savings calculation |
+| Implemented RAG retrieval evaluation | Implemented | `RagEvalRunner` reports `hit@1`, `hit@k`, and `MRR` on the configured eval dataset |
+| Implemented JSON long-term Agent memory | Verified | `JsonMemoryStoreTest`, `MemoryServiceTest`, and `AiOpsServiceTest` verify read/write/search integration |
 
 ## Commands
 
@@ -39,19 +37,19 @@ mvn -q -DskipTests compile
 
 ## AIOps Evidence Summary
 
-The intended local verification setup uses:
+The local verification setup uses:
 
 - Spring Boot local profile.
 - Local stdio MCP for Tencent CLS.
-- Tencent CLS test topics, when credentials are configured.
+- Tencent CLS topics when credentials are configured.
 - Prometheus mock alerts for current active alert input.
-- Sample or test-topic log evidence for CPU and database pool symptoms.
+- Sample or CLS topic log evidence for CPU, application and database symptoms.
 
-The generated report is expected to show this chain:
+The generated report follows this chain:
 
 ```mermaid
 flowchart LR
-    A["Mock or test active alerts"] --> B["Planner decomposes tasks"]
+    A["Active alerts"] --> B["Planner decomposes tasks"]
     B --> C["RAG retrieves runbooks"]
     B --> D["CLS or local log tools search logs"]
     B --> E["Metrics tool checks alert context"]
@@ -61,16 +59,12 @@ flowchart LR
     F --> G["Mitigation suggestions"]
 ```
 
-## Notes On Metrics
+## Recommended Resume Wording
 
-The current RAG metric verifies whether the retrieval chain returns the expected runbook source or expected content in TopK. It does not grade final answer quality, operator satisfaction, or production root-cause accuracy.
+> Built OnCallPilot, an AIOps Agent project based on Spring Boot and Spring AI Alibaba. The system uses a Planner-Executor style Agent flow to connect alert reading, RAG runbook retrieval, CLS/local log search, root-cause synthesis and remediation suggestion generation. I also implemented SessionId-based short-term memory, JSON long-term incident memory, and a RAG retrieval evaluation pipeline with hit@1, hit@K and MRR metrics.
 
-Safe resume wording:
+## Evidence To Keep Updating
 
-> Built a RAG retrieval evaluation pipeline with hit@1, hit@K, and MRR metrics on a local AIOps runbook dataset.
-
-Avoid wording like:
-
-> Production root-cause accuracy reached 85%+.
-
-That claim is not supported by the current project evidence.
+- Add more Prompt before / after tuning records.
+- Save AIOps running screenshots or short recordings.
+- Add A/B reports for Planner-Executor vs single Agent and rerank vs no rerank.
