@@ -8,6 +8,9 @@ class OnCallPilotApp {
         this.currentChatHistory = []; // 当前对话的消息历史
         this.chatHistories = this.loadChatHistories(); // 所有历史对话
         this.isCurrentChatFromHistory = false; // 标记当前对话是否是从历史记录加载的
+        this.debugSse = false;
+        this.aiOpsRenderTimer = null;
+        this.pendingAIOpsContent = '';
         
         this.initializeElements();
         this.bindEvents();
@@ -684,7 +687,7 @@ class OnCallPilotApp {
 
             // 处理流式响应
             const reader = response.body.getReader();
-            const decoder = new TextDecoder();
+            const decoder = new TextDecoder('utf-8');
             let buffer = '';
             let currentEvent = '';
 
@@ -1226,7 +1229,7 @@ class OnCallPilotApp {
 
             // 处理 SSE 流式响应
             const reader = response.body.getReader();
-            const decoder = new TextDecoder();
+            const decoder = new TextDecoder('utf-8');
             let buffer = '';
             let currentEvent = 'message'; // 默认事件类型为 message
 
@@ -1237,7 +1240,7 @@ class OnCallPilotApp {
                     if (done) {
                         // 流结束，更新最终内容
                         if (fullResponse) {
-                            console.log('AI Ops 流结束，更新最终内容，长度:', fullResponse.length);
+                            if (this.debugSse) console.log('AI Ops 流结束，更新最终内容，长度:', fullResponse.length);
                             this.updateAIOpsMessage(loadingMessageElement, fullResponse, []);
                         }
                         break;
@@ -1254,18 +1257,18 @@ class OnCallPilotApp {
                     for (const line of lines) {
                         if (line.trim() === '') continue;
                         
-                        console.log('[AI Ops SSE] 收到行:', line);
+                        if (this.debugSse) console.log('[AI Ops SSE] 收到行:', line);
                         
                         // 解析 SSE 格式
                         if (line.startsWith('id:')) {
                             continue;
                         } else if (line.startsWith('event:')) {
                             currentEvent = line.substring(6).trim();
-                            console.log('[AI Ops SSE] 事件类型:', currentEvent);
+                            if (this.debugSse) console.log('[AI Ops SSE] 事件类型:', currentEvent);
                             continue;
                         } else if (line.startsWith('data:')) {
                             const rawData = line.substring(5).trim();
-                            console.log('[AI Ops SSE] 数据:', rawData, ', currentEvent:', currentEvent);
+                            if (this.debugSse) console.log('[AI Ops SSE] 数据:', rawData, ', currentEvent:', currentEvent);
                             
                             // 解析可能包含多个JSON对象的数据
                             const processJsonMessages = (data) => {
@@ -1273,14 +1276,14 @@ class OnCallPilotApp {
                                 const matches = data.match(jsonPattern);
                                 
                                 if (matches && matches.length > 0) {
-                                    console.log('[AI Ops SSE] 匹配到', matches.length, '个JSON对象');
+                                    if (this.debugSse) console.log('[AI Ops SSE] 匹配到', matches.length, '个JSON对象');
                                     for (const jsonStr of matches) {
                                         try {
                                             const sseMessage = JSON.parse(jsonStr);
                                             if (sseMessage.type === 'content') {
                                                 fullResponse += sseMessage.data || '';
                                             } else if (sseMessage.type === 'done') {
-                                                console.log('AI Ops 流完成，最终内容长度:', fullResponse.length);
+                                                if (this.debugSse) console.log('AI Ops 流完成，最终内容长度:', fullResponse.length);
                                                 this.updateAIOpsMessage(loadingMessageElement, fullResponse, []);
                                                 return true;
                                             } else if (sseMessage.type === 'error') {
@@ -1288,7 +1291,7 @@ class OnCallPilotApp {
                                             }
                                         } catch (e) {
                                             if (e.message.includes('智能运维')) throw e;
-                                            console.log('[AI Ops SSE] 单个JSON解析失败:', jsonStr);
+                                            if (this.debugSse) console.log('[AI Ops SSE] 单个JSON解析失败:', jsonStr);
                                         }
                                     }
                                     if (loadingMessageElement) {
@@ -1313,7 +1316,7 @@ class OnCallPilotApp {
                                                 this.updateAIOpsStreamContent(loadingMessageElement, fullResponse);
                                             }
                                         } else if (sseMessage.type === 'done') {
-                                            console.log('AI Ops 流完成，最终内容长度:', fullResponse.length);
+                                            if (this.debugSse) console.log('AI Ops 流完成，最终内容长度:', fullResponse.length);
                                             this.updateAIOpsMessage(loadingMessageElement, fullResponse, []);
                                             return;
                                         } else if (sseMessage.type === 'error') {
@@ -1348,35 +1351,46 @@ class OnCallPilotApp {
     // 更新智能运维流式内容（实时显示）
     updateAIOpsStreamContent(messageElement, content) {
         if (!messageElement) return;
-        
-        // 添加 aiops-message 类
-        messageElement.classList.add('aiops-message');
-        
-        const messageContentWrapper = messageElement.querySelector('.message-content-wrapper');
-        if (messageContentWrapper) {
-            let messageContent = messageContentWrapper.querySelector('.message-content');
-            if (!messageContent) {
-                messageContent = document.createElement('div');
-                messageContent.className = 'message-content';
-                messageContentWrapper.appendChild(messageContent);
-            }
-            // 流式显示时使用纯文本
-            messageContent.textContent = content;
-            this.scrollToBottom();
+
+        this.pendingAIOpsContent = content;
+        if (this.aiOpsRenderTimer) {
+            return;
         }
+
+        this.aiOpsRenderTimer = window.setTimeout(() => {
+            this.aiOpsRenderTimer = null;
+            this.renderAIOpsStreamContent(messageElement, this.pendingAIOpsContent);
+        }, 120);
+    }
+
+    renderAIOpsStreamContent(messageElement, content) {
+        if (!messageElement) return;
+
+        messageElement.classList.add('aiops-message');
+
+        const messageContentWrapper = messageElement.querySelector('.message-content-wrapper');
+        if (!messageContentWrapper) return;
+
+        let messageContent = messageContentWrapper.querySelector('.message-content');
+        if (!messageContent) {
+            messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContentWrapper.appendChild(messageContent);
+        }
+
+        messageContent.textContent = content;
+        this.scrollToBottom();
     }
 
     // 更新智能运维消息（带折叠详情）
     updateAIOpsMessage(messageElement, response, details) {
-        console.log('updateAIOpsMessage 被调用');
-        console.log('messageElement:', messageElement);
-        console.log('response:', response);
-        console.log('response length:', response ? response.length : 0);
-        console.log('details:', details);
+        if (this.aiOpsRenderTimer) {
+            window.clearTimeout(this.aiOpsRenderTimer);
+            this.aiOpsRenderTimer = null;
+        }
         
         if (!messageElement) {
             // 如果没有传入消息元素，则创建新消息
-            console.log('messageElement 为空，创建新消息');
             return this.addAIOpsMessage(response, details);
         }
 
@@ -1450,14 +1464,10 @@ class OnCallPilotApp {
         }
 
         // 更新主要响应内容（使用Markdown渲染）
-        console.log('开始渲染 Markdown');
         const renderedHtml = this.renderMarkdown(response);
-        console.log('Markdown 渲染完成，HTML 长度:', renderedHtml ? renderedHtml.length : 0);
         messageContent.innerHTML = renderedHtml;
-        console.log('innerHTML 已设置');
         // 高亮代码块
         this.highlightCodeBlocks(messageContent);
-        console.log('代码块高亮完成');
         
         // 保存到历史记录
         this.currentChatHistory.push({
