@@ -347,6 +347,9 @@ mvn -q "-Dtest=DocumentChunkServiceTest,SessionMemoryTest,JsonMemoryStoreTest,Me
 
 # 简历证据检查
 powershell -ExecutionPolicy Bypass -File scripts/verify-resume-claims.ps1 -SkipMaven
+
+# 中文编码检查
+powershell -ExecutionPolicy Bypass -File scripts/check-encoding.ps1
 ```
 
 ## 🧾 项目展示口径

@@ -4,6 +4,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[Console]::OutputEncoding = $utf8NoBom
+$OutputEncoding = $utf8NoBom
+
 function Add-Result {
     param(
         [string]$Claim,
@@ -61,7 +65,7 @@ $results.Add((Add-Result `
 $ragReportExists = Test-Path "target/rag-eval-report.json"
 $ragPass = $false
 if ($ragReportExists) {
-    $ragText = Get-Content "target/rag-eval-report.json" -Raw
+    $ragText = Get-Content "target/rag-eval-report.json" -Raw -Encoding UTF8
     $match = [regex]::Match($ragText, '"hit_at_k"\s*:\s*([0-9.]+)\s*$')
     if (-not $match.Success) {
         $match = [regex]::Match($ragText, '"hit_at_k"\s*:\s*([0-9.]+)')
