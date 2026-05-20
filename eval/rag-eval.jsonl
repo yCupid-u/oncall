@@ -23,3 +23,28 @@
 {"query":"User service response time is slow because downstream dependency is slow","expected_source":"slow_response.md"}
 {"query":"Database slow query causes API timeout and high response time","expected_source":"slow_response.md"}
 {"query":"Thread pool queue builds up and requests wait too long","expected_source":"slow_response.md"}
+{"query":"DatabaseSlowQuery slow SQL query time above one second remediation","expected_source":"database_slow_query.md"}
+{"query":"SQLTimeoutException appears and connection pool is exhausted","expected_source":"database_slow_query.md"}
+{"query":"rows_examined is high and SQL does full table scan","expected_source":"database_slow_query.md"}
+{"query":"lock wait timeout causes API request timeout","expected_source":"database_slow_query.md"}
+{"query":"Missing index makes database query slow after data growth","expected_source":"database_slow_query.md"}
+{"query":"JvmFullGC happens frequently and heap does not drop after GC","expected_source":"jvm_full_gc_oom.md"}
+{"query":"OutOfMemoryError Java heap space emergency steps","expected_source":"jvm_full_gc_oom.md"}
+{"query":"GC overhead limit exceeded and service latency spikes","expected_source":"jvm_full_gc_oom.md"}
+{"query":"Metaspace out of memory in Java application","expected_source":"jvm_full_gc_oom.md"}
+{"query":"Direct buffer memory OOM appears in application logs","expected_source":"jvm_full_gc_oom.md"}
+{"query":"ThreadPoolExhausted active threads near maximum and queue grows","expected_source":"thread_pool_exhaustion.md"}
+{"query":"RejectedExecutionException appears in application logs","expected_source":"thread_pool_exhaustion.md"}
+{"query":"Thread dump shows many blocked threads and requests timeout","expected_source":"thread_pool_exhaustion.md"}
+{"query":"Downstream slow call blocks business thread pool","expected_source":"thread_pool_exhaustion.md"}
+{"query":"Thread pool queue size keeps increasing under normal traffic","expected_source":"thread_pool_exhaustion.md"}
+{"query":"HighErrorRate 5xx errors rise after release","expected_source":"high_error_rate.md"}
+{"query":"NullPointerException appears only on new version instances","expected_source":"high_error_rate.md"}
+{"query":"Core API returns HTTP 500 after configuration change","expected_source":"high_error_rate.md"}
+{"query":"Errors concentrated on one instance and need traffic removal","expected_source":"high_error_rate.md"}
+{"query":"Dependency connection refused causes high error rate","expected_source":"high_error_rate.md"}
+{"query":"DownstreamDependencyTimeout HTTP RPC Redis or MQ timeout","expected_source":"downstream_dependency_timeout.md"}
+{"query":"Circuit breaker opens because downstream timeout rate is high","expected_source":"downstream_dependency_timeout.md"}
+{"query":"Retry storm amplifies dependency outage and consumes threads","expected_source":"downstream_dependency_timeout.md"}
+{"query":"connection reset and no route to host for downstream service","expected_source":"downstream_dependency_timeout.md"}
+{"query":"Fallback and timeout tuning for downstream dependency failure","expected_source":"downstream_dependency_timeout.md"}

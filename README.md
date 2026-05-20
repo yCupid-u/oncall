@@ -78,7 +78,7 @@ OnCallPilot/
 ├── src/main/resources/
 │   ├── static/                        # Web 界面
 │   └── application.yml                # 应用配置
-└── aiops-docs/                        # 运维文档库
+└── aiops-docs/                        # 运维文档库，覆盖 CPU、内存、磁盘、慢查询、GC/OOM、线程池、错误率、依赖超时等故障
 ```
 
 ## 🧰 Agent 工具调用
@@ -132,7 +132,7 @@ AGENT_MEMORY_PATH=custom/path/memory-store.json
 
 ## 📊 RAG 评测
 
-项目提供本地样例集评测入口，用于验证检索链路是否能召回期望 runbook 或关键内容。
+项目提供本地样例集评测入口，用于验证检索链路是否能召回期望 runbook 或关键内容。当前 `aiops-docs/` 覆盖常见 OnCall 故障，`eval/rag-eval.jsonl` 可用于验证扩充后的知识库召回效果。
 
 配置项：
 
