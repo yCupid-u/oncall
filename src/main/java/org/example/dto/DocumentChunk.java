@@ -4,37 +4,51 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * 文档分片
+ * 文档切片。
  */
 @Setter
 @Getter
 public class DocumentChunk {
 
-    // Getters and Setters
     /**
-     * 分片内容
+     * 切片内容。用于 embedding 和入库。
      */
     private String content;
-    
+
     /**
-     * 分片在原文档中的起始位置
+     * 切片在原文档中的起始位置。
      */
     private int startIndex;
-    
+
     /**
-     * 分片在原文档中的结束位置
+     * 切片在原文档中的结束位置。
      */
     private int endIndex;
-    
+
     /**
-     * 分片序号（从0开始）
+     * 切片序号，从 0 开始。
      */
     private int chunkIndex;
-    
+
     /**
-     * 分片标题或上下文信息
+     * 当前章节标题。
      */
     private String title;
+
+    /**
+     * 标题层级路径，例如：CPU 使用率过高 > 排查步骤。
+     */
+    private String headingPath;
+
+    /**
+     * Markdown 标题层级，# 为 1，## 为 2。无标题时为 0。
+     */
+    private int headingLevel;
+
+    /**
+     * 生成该切片使用的策略，便于调试和评测。
+     */
+    private String chunkStrategy;
 
     public DocumentChunk() {
     }
@@ -51,6 +65,9 @@ public class DocumentChunk {
         return "DocumentChunk{" +
                 "chunkIndex=" + chunkIndex +
                 ", title='" + title + '\'' +
+                ", headingPath='" + headingPath + '\'' +
+                ", headingLevel=" + headingLevel +
+                ", chunkStrategy='" + chunkStrategy + '\'' +
                 ", contentLength=" + (content != null ? content.length() : 0) +
                 ", startIndex=" + startIndex +
                 ", endIndex=" + endIndex +

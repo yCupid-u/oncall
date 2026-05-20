@@ -11,219 +11,231 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
- * 文档分片服务
- * 负责将长文档切分为多个有语义完整性的小片段
+ * 文档切片服务。
+ *
+ * <p>策略：优先保留 Markdown 标题层级，再按段落、句子和固定长度兜底切分。
+ * chunk 内容会前置标题路径，让 embedding 能保留章节上下文。</p>
  */
 @Service
 public class DocumentChunkService {
 
     private static final Logger logger = LoggerFactory.getLogger(DocumentChunkService.class);
+    private static final Pattern HEADING_PATTERN = Pattern.compile("^(#{1,6})\\s+(.+?)\\s*$", Pattern.MULTILINE);
+    private static final Pattern SENTENCE_PATTERN = Pattern.compile("[^。！？!?；;\\n]+[。！？!?；;]?");
 
     @Autowired
     private DocumentChunkConfig chunkConfig;
 
-    /**
-     * 智能分片文档
-     * 优先按照标题、段落边界进行分割，保持语义完整性
-     * 
-     * @param content 文档内容
-     * @param filePath 文件路径（用于日志）
-     * @return 文档分片列表
-     */
     public List<DocumentChunk> chunkDocument(String content, String filePath) {
         List<DocumentChunk> chunks = new ArrayList<>();
-
         if (content == null || content.trim().isEmpty()) {
             logger.warn("文档内容为空: {}", filePath);
             return chunks;
         }
 
-        // 1. 首先尝试按标题分割（Markdown格式）
-        List<Section> sections = splitByHeadings(content);
-        
-        // 2. 对每个章节进行进一步分片
-        int globalChunkIndex = 0;
+        String normalized = content.replace("\r\n", "\n").replace('\r', '\n');
+        List<Section> sections = splitByHeadings(normalized);
+
+        int chunkIndex = 0;
         for (Section section : sections) {
-            List<DocumentChunk> sectionChunks = chunkSection(section, globalChunkIndex);
+            List<DocumentChunk> sectionChunks = chunkSection(section, chunkIndex);
             chunks.addAll(sectionChunks);
-            globalChunkIndex += sectionChunks.size();
+            chunkIndex += sectionChunks.size();
         }
 
-        logger.info("文档分片完成: {} -> {} 个分片", filePath, chunks.size());
+        logger.info("文档切片完成: {} -> {} 个切片", filePath, chunks.size());
         return chunks;
     }
 
-    /**
-     * 按照 Markdown 标题分割文档
-     */
     private List<Section> splitByHeadings(String content) {
         List<Section> sections = new ArrayList<>();
-        
-        // 匹配 Markdown 标题：# 标题, ## 标题, ### 标题等
-        Pattern headingPattern = Pattern.compile("^(#{1,6})\\s+(.+)$", Pattern.MULTILINE);
-        Matcher matcher = headingPattern.matcher(content);
+        Matcher matcher = HEADING_PATTERN.matcher(content);
+        List<Heading> headingStack = new ArrayList<>();
 
-        int lastEnd = 0;
-        String currentTitle = null;
+        int bodyStart = 0;
+        Heading currentHeading = null;
 
         while (matcher.find()) {
-            // 保存上一个章节
-            if (lastEnd < matcher.start()) {
-                String sectionContent = content.substring(lastEnd, matcher.start()).trim();
-                if (!sectionContent.isEmpty()) {
-                    sections.add(new Section(currentTitle, sectionContent, lastEnd));
-                }
+            if (matcher.start() > bodyStart) {
+                addSection(sections, currentHeading, headingStack, content.substring(bodyStart, matcher.start()), bodyStart);
             }
 
-            // 更新当前标题
-            currentTitle = matcher.group(2).trim();
-            lastEnd = matcher.start();
-        }
-
-        // 添加最后一个章节
-        if (lastEnd < content.length()) {
-            String sectionContent = content.substring(lastEnd).trim();
-            if (!sectionContent.isEmpty()) {
-                sections.add(new Section(currentTitle, sectionContent, lastEnd));
+            int level = matcher.group(1).length();
+            String title = matcher.group(2).trim();
+            while (!headingStack.isEmpty() && headingStack.get(headingStack.size() - 1).level >= level) {
+                headingStack.remove(headingStack.size() - 1);
             }
+
+            currentHeading = new Heading(level, title);
+            headingStack.add(currentHeading);
+            bodyStart = matcher.end();
         }
 
-        // 如果没有找到任何标题，将整个文档作为一个章节
-        if (sections.isEmpty()) {
-            sections.add(new Section(null, content, 0));
+        if (bodyStart < content.length()) {
+            addSection(sections, currentHeading, headingStack, content.substring(bodyStart), bodyStart);
+        }
+
+        if (sections.isEmpty() && !content.trim().isEmpty()) {
+            sections.add(new Section(null, null, 0, content.trim(), 0));
         }
 
         return sections;
     }
 
-    /**
-     * 对单个章节进行分片
-     */
-    private List<DocumentChunk> chunkSection(Section section, int startChunkIndex) {
-        List<DocumentChunk> chunks = new ArrayList<>();
-        String content = section.content;
-        String title = section.title;
-
-        // 如果章节内容小于最大尺寸，直接作为一个分片
-        if (content.length() <= chunkConfig.getMaxSize()) {
-            DocumentChunk chunk = new DocumentChunk(
-                content, 
-                section.startIndex, 
-                section.startIndex + content.length(), 
-                startChunkIndex
-            );
-            chunk.setTitle(title);
-            chunks.add(chunk);
-            return chunks;
+    private void addSection(List<Section> sections, Heading currentHeading, List<Heading> headingStack,
+                            String rawBody, int startIndex) {
+        String body = rawBody.trim();
+        if (body.isEmpty()) {
+            return;
         }
 
-        // 章节内容较长，需要进一步分片
-        // 优先在段落边界分割
-        List<String> paragraphs = splitByParagraphs(content);
-        
-        StringBuilder currentChunk = new StringBuilder();
-        int currentStartIndex = section.startIndex;
+        String headingPath = headingStack.stream()
+                .map(heading -> heading.title)
+                .collect(Collectors.joining(" > "));
+        String title = currentHeading == null ? null : currentHeading.title;
+        int level = currentHeading == null ? 0 : currentHeading.level;
+        sections.add(new Section(title, blankToNull(headingPath), level, body, startIndex));
+    }
+
+    private List<DocumentChunk> chunkSection(Section section, int startChunkIndex) {
+        List<String> units = splitToSemanticUnits(section.body);
+        List<DocumentChunk> chunks = new ArrayList<>();
+
+        StringBuilder currentBody = new StringBuilder();
         int chunkIndex = startChunkIndex;
+        int currentStartIndex = section.startIndex;
+        String strategy = strategyName(section, units);
 
-        for (String paragraph : paragraphs) {
-            // 如果当前分片加上新段落超过最大尺寸
-            if (currentChunk.length() > 0 && 
-                currentChunk.length() + paragraph.length() > chunkConfig.getMaxSize()) {
-                
-                // 保存当前分片
-                String chunkContent = currentChunk.toString().trim();
-                DocumentChunk chunk = new DocumentChunk(
-                    chunkContent,
-                    currentStartIndex,
-                    currentStartIndex + chunkContent.length(),
-                    chunkIndex++
-                );
-                chunk.setTitle(title);
-                chunks.add(chunk);
-
-                // 开始新分片，包含重叠部分
-                String overlap = getOverlapText(chunkContent);
-                currentChunk = new StringBuilder(overlap);
-                currentStartIndex = currentStartIndex + chunkContent.length() - overlap.length();
+        for (String unit : units) {
+            if (unit.isBlank()) {
+                continue;
             }
 
-            currentChunk.append(paragraph).append("\n\n");
+            int nextLength = decoratedLength(section, currentBody, unit);
+            if (currentBody.length() > 0 && nextLength > chunkConfig.getMaxSize()) {
+                chunks.add(buildChunk(section, currentBody.toString().trim(), currentStartIndex, chunkIndex++, strategy));
+                String overlap = sentenceAwareOverlap(currentBody.toString());
+                currentBody = new StringBuilder(overlap);
+                if (!overlap.isEmpty()) {
+                    currentBody.append("\n\n");
+                }
+                currentStartIndex = Math.max(section.startIndex, currentStartIndex + currentBody.length());
+            }
+
+            currentBody.append(unit.trim()).append("\n\n");
         }
 
-        // 保存最后一个分片
-        if (currentChunk.length() > 0) {
-            String chunkContent = currentChunk.toString().trim();
-            DocumentChunk chunk = new DocumentChunk(
-                chunkContent,
-                currentStartIndex,
-                currentStartIndex + chunkContent.length(),
-                chunkIndex
-            );
-            chunk.setTitle(title);
-            chunks.add(chunk);
+        if (currentBody.length() > 0) {
+            chunks.add(buildChunk(section, currentBody.toString().trim(), currentStartIndex, chunkIndex, strategy));
         }
 
         return chunks;
     }
 
-    /**
-     * 按段落分割文本
-     */
-    private List<String> splitByParagraphs(String content) {
-        List<String> paragraphs = new ArrayList<>();
-        
-        // 按双换行符分割段落
-        String[] parts = content.split("\n\n+");
-        for (String part : parts) {
-            String trimmed = part.trim();
-            if (!trimmed.isEmpty()) {
-                paragraphs.add(trimmed);
-            }
-        }
-
-        return paragraphs;
+    private int decoratedLength(Section section, StringBuilder currentBody, String unit) {
+        String body = currentBody + unit;
+        return decorateWithHeadingPath(section.headingPath, body).length();
     }
 
-    /**
-     * 获取重叠文本
-     * 从文本末尾提取指定长度的内容作为下一个分片的开头
-     */
-    private String getOverlapText(String text) {
+    private List<String> splitToSemanticUnits(String content) {
+        List<String> units = new ArrayList<>();
+        for (String paragraph : content.split("\\n\\s*\\n+")) {
+            String trimmed = paragraph.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (trimmed.length() <= chunkConfig.getMaxSize()) {
+                units.add(trimmed);
+                continue;
+            }
+            units.addAll(splitLongParagraph(trimmed));
+        }
+        return units;
+    }
+
+    private List<String> splitLongParagraph(String paragraph) {
+        List<String> sentences = new ArrayList<>();
+        Matcher matcher = SENTENCE_PATTERN.matcher(paragraph);
+        while (matcher.find()) {
+            String sentence = matcher.group().trim();
+            if (sentence.isEmpty()) {
+                continue;
+            }
+            if (sentence.length() <= chunkConfig.getMaxSize()) {
+                sentences.add(sentence);
+            } else {
+                sentences.addAll(splitFixedLength(sentence));
+            }
+        }
+        if (sentences.isEmpty()) {
+            sentences.addAll(splitFixedLength(paragraph));
+        }
+        return sentences;
+    }
+
+    private List<String> splitFixedLength(String text) {
+        List<String> parts = new ArrayList<>();
+        int maxSize = Math.max(1, chunkConfig.getMaxSize());
+        for (int i = 0; i < text.length(); i += maxSize) {
+            parts.add(text.substring(i, Math.min(i + maxSize, text.length())));
+        }
+        return parts;
+    }
+
+    private String sentenceAwareOverlap(String text) {
         int overlapSize = Math.min(chunkConfig.getOverlap(), text.length());
         if (overlapSize <= 0) {
             return "";
         }
 
-        // 从末尾提取重叠内容
-        String overlap = text.substring(text.length() - overlapSize);
-        
-        // 尝试在句子边界截断（查找最后一个句号、问号、感叹号）
-        int lastSentenceEnd = Math.max(
-            overlap.lastIndexOf('。'),
-            Math.max(overlap.lastIndexOf('？'), overlap.lastIndexOf('！'))
+        String tail = text.substring(text.length() - overlapSize).trim();
+        int sentenceStart = Math.max(
+                Math.max(tail.lastIndexOf('。'), tail.lastIndexOf('！')),
+                Math.max(tail.lastIndexOf('？'), Math.max(tail.lastIndexOf('.'), tail.lastIndexOf(';')))
         );
-        
-        if (lastSentenceEnd > overlapSize / 2) {
-            return overlap.substring(lastSentenceEnd + 1).trim();
+        if (sentenceStart > 0 && sentenceStart + 1 < tail.length()) {
+            return tail.substring(sentenceStart + 1).trim();
         }
-
-        return overlap.trim();
+        return tail;
     }
 
-    /**
-     * 章节数据类
-     */
-    private static class Section {
-        String title;
-        String content;
-        int startIndex;
+    private DocumentChunk buildChunk(Section section, String body, int startIndex, int chunkIndex, String strategy) {
+        String content = decorateWithHeadingPath(section.headingPath, body);
+        DocumentChunk chunk = new DocumentChunk(content, startIndex, startIndex + body.length(), chunkIndex);
+        chunk.setTitle(section.title);
+        chunk.setHeadingPath(section.headingPath);
+        chunk.setHeadingLevel(section.headingLevel);
+        chunk.setChunkStrategy(strategy);
+        return chunk;
+    }
 
-        Section(String title, String content, int startIndex) {
-            this.title = title;
-            this.content = content;
-            this.startIndex = startIndex;
+    private String decorateWithHeadingPath(String headingPath, String body) {
+        if (headingPath == null || headingPath.isBlank()) {
+            return body.trim();
         }
+        return headingPath + "\n\n" + body.trim();
+    }
+
+    private String strategyName(Section section, List<String> units) {
+        String base = section.headingPath == null ? "paragraph" : "heading-path+paragraph";
+        boolean usedSentenceSplit = units.stream().anyMatch(unit -> unit.length() < section.body.length())
+                && section.body.length() > chunkConfig.getMaxSize();
+        if (usedSentenceSplit) {
+            return base + "+sentence";
+        }
+        return base;
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
+    private record Heading(int level, String title) {
+    }
+
+    private record Section(String title, String headingPath, int headingLevel, String body, int startIndex) {
     }
 }

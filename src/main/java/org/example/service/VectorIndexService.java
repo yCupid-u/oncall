@@ -245,6 +245,14 @@ public class VectorIndexService {
         if (chunk.getTitle() != null && !chunk.getTitle().isEmpty()) {
             metadata.put("title", chunk.getTitle());
         }
+
+        if (chunk.getHeadingPath() != null && !chunk.getHeadingPath().isEmpty()) {
+            metadata.put("headingPath", chunk.getHeadingPath());
+        }
+        metadata.put("headingLevel", chunk.getHeadingLevel());
+        if (chunk.getChunkStrategy() != null && !chunk.getChunkStrategy().isEmpty()) {
+            metadata.put("chunkStrategy", chunk.getChunkStrategy());
+        }
         
         return metadata;
     }
