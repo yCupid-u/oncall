@@ -1,0 +1,25 @@
+{"query":"HighCPUUsage CPU usage above 90 percent troubleshooting steps","expected_source":"cpu_high_usage.md"}
+{"query":"CPU saturation on payment service, thread count keeps growing","expected_source":"cpu_high_usage.md"}
+{"query":"Java process consumes nearly all CPU after traffic spike","expected_source":"cpu_high_usage.md"}
+{"query":"Scheduled job caused periodic CPU spike, what runbook should I use","expected_source":"cpu_high_usage.md"}
+{"query":"Slow SQL leads to high application CPU and connection pressure","expected_source":"cpu_high_usage.md"}
+{"query":"HighMemoryUsage memory usage above 85 percent root cause checklist","expected_source":"memory_high_usage.md"}
+{"query":"JVM full GC happens frequently and memory cannot be released","expected_source":"memory_high_usage.md"}
+{"query":"OutOfMemoryError appears in application logs, emergency mitigation","expected_source":"memory_high_usage.md"}
+{"query":"Cache grows too large and memory keeps increasing","expected_source":"memory_high_usage.md"}
+{"query":"Large file upload causes memory spike and service restart","expected_source":"memory_high_usage.md"}
+{"query":"HighDiskUsage disk usage too high mitigation runbook","expected_source":"disk_high_usage.md"}
+{"query":"No space left on device appears in application logs","expected_source":"disk_high_usage.md"}
+{"query":"Application logs fill /var/log and disk usage exceeds threshold","expected_source":"disk_high_usage.md"}
+{"query":"Temporary files pile up under /tmp and filesystem is almost full","expected_source":"disk_high_usage.md"}
+{"query":"Database data files grow quickly and disk alert is triggered","expected_source":"disk_high_usage.md"}
+{"query":"ServiceUnavailable service unavailable alert diagnosis steps","expected_source":"service_unavailable.md"}
+{"query":"Health check fails and all instances stop responding","expected_source":"service_unavailable.md"}
+{"query":"Application cannot start after release, need rollback procedure","expected_source":"service_unavailable.md"}
+{"query":"Downstream database connection refused makes service unavailable","expected_source":"service_unavailable.md"}
+{"query":"Redis or MQ dependency outage causes 500 errors","expected_source":"service_unavailable.md"}
+{"query":"SlowResponse P99 latency over 3 seconds troubleshooting","expected_source":"slow_response.md"}
+{"query":"P99 latency rises while throughput remains stable","expected_source":"slow_response.md"}
+{"query":"User service response time is slow because downstream dependency is slow","expected_source":"slow_response.md"}
+{"query":"Database slow query causes API timeout and high response time","expected_source":"slow_response.md"}
+{"query":"Thread pool queue builds up and requests wait too long","expected_source":"slow_response.md"}
