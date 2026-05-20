@@ -41,11 +41,19 @@ spring:
         version: 1.0.0
         request-timeout: 60s
         type: ASYNC
-        sse:
+        stdio:
           connections:
             tencent-cls:
-              url: ${MCP_TENCENT_CLS_URL:https://mcp-api.tencent-cloud.com}
-              sse-endpoint: ${MCP_TENCENT_CLS_SSE_ENDPOINT:}
+              command: ${MCP_TENCENT_CLS_STDIO_COMMAND:node}
+              args:
+                - ${MCP_TENCENT_CLS_STDIO_ARG0:scripts/cls-mcp-stdio-wrapper.js}
+              env:
+                TRANSPORT: ${MCP_TENCENT_CLS_TRANSPORT:stdio}
+                TENCENTCLOUD_SECRET_ID: ${TENCENTCLOUD_SECRET_ID:}
+                TENCENTCLOUD_SECRET_KEY: ${TENCENTCLOUD_SECRET_KEY:}
+                TENCENTCLOUD_API_BASE_HOST: ${TENCENTCLOUD_API_BASE_HOST:tencentcloudapi.com}
+                TZ: ${MCP_TENCENT_CLS_TZ:Asia/Shanghai}
+
 
 dashscope:
   api:
@@ -61,6 +69,12 @@ document:
 rag:
   top-k: 3
   model: "qwen3-max"
+  eval:
+    enabled: ${RAG_EVAL_ENABLED:false}
+    dataset: ${RAG_EVAL_DATASET:eval/rag-eval.jsonl}
+    output: ${RAG_EVAL_OUTPUT:target/rag-eval-report.json}
+    top-k: ${RAG_EVAL_TOP_K:3}
+    fail-fast: ${RAG_EVAL_FAIL_FAST:false}
   rerank:
     enabled: true
     model: "qwen3-rerank"
@@ -82,3 +96,18 @@ prometheus:
 
 cls:
   mock-enabled: ${CLS_MOCK_ENABLED:false}
+  secret-id: ${TENCENTCLOUD_SECRET_ID:}
+  secret-key: ${TENCENTCLOUD_SECRET_KEY:}
+  endpoint: ${TENCENT_CLS_ENDPOINT:cls.tencentcloudapi.com}
+  default-region: ${TENCENT_CLS_DEFAULT_REGION:ap-guangzhou}
+  default-lookback-minutes: ${TENCENT_CLS_DEFAULT_LOOKBACK_MINUTES:30}
+  topic-ids:
+    system-metrics: ${TENCENT_CLS_TOPIC_SYSTEM_METRICS:${CLS_TOPIC_SYSTEM_METRICS:}}
+    application-logs: ${TENCENT_CLS_TOPIC_APPLICATION_LOGS:${CLS_TOPIC_APPLICATION_LOGS:}}
+    database-slow-query: ${TENCENT_CLS_TOPIC_DATABASE_SLOW_QUERY:${CLS_TOPIC_DATABASE_SLOW_QUERY:}}
+    system-events: ${TENCENT_CLS_TOPIC_SYSTEM_EVENTS:${CLS_TOPIC_SYSTEM_EVENTS:}}
+    default: ${TENCENT_CLS_TOPIC_DEFAULT:${CLS_TOPIC_DEFAULT:}}
+
+agent:
+  memory:
+    path: ${AGENT_MEMORY_PATH:data/agent-memory/memory-store.json}
