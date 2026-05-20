@@ -20,6 +20,15 @@ OnCallPilot 是一个智能值班排障助手演示项目，包含两大核心�
 - ✅ **会话管理**: 上下文维护、历史管理、自动清理
 - ✅ **Web 界面**: 提供测试界面和 RESTful API
 
+## 📁 投递材料
+
+如果这个仓库用于 Agent 岗位投递，建议优先阅读以下文档：
+
+- `docs/agent-portfolio.md`：项目作品集说明
+- `docs/job-fit-analysis.md`：与岗位要求的逐项匹配分析
+- `docs/prompt-tuning-log.md`：Prompt 调优记录模板与待补案例
+- `docs/project-followup-roadmap.md`：后续补齐路线图
+
 
 ## 🛠️ 技术栈
 
