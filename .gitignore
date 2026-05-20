@@ -60,3 +60,10 @@ uploads/
 .env
 .env.*
 !.env.example
+
+### Local Spring Boot config ###
+src/main/resources/application-local.yml
+src/main/resources/application-*.local.yml
+
+### Local run state ###
+*.pid
